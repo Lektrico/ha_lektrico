@@ -1,2 +1,2 @@
-# ha_lektrico
-Lektrico Charging Station
+# Lektrico Charging Station
+Manage your Lektrico EV Charger
