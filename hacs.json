@@ -1,4 +1,4 @@
 {
-    "name": "Lektrico Home Assistant",
+    "name": "Lektrico Charging Station",
     "domains": ["sensor", "binary_sensor"]
 }
