@@ -1,5 +1,5 @@
 {
-  "domain": "lektrico",
+  "domain": "lektrico_custom",
   "name": "Lektrico Charging Station",
   "config_flow": true,
   "documentation": "https://github.com/mtarjoianu/ha_lektrico",
