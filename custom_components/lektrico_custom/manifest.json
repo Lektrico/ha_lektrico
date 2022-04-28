@@ -5,7 +5,7 @@
   "documentation": "https://github.com/mtarjoianu/ha_lektrico",
   "issue_tracker": "https://github.com/mtarjoianu/ha_lektrico/issues",
   "requirements": [
-    "lektricowifi==0.0.13"
+    "lektricowifi==0.0.14"
   ],
   "dependencies": [],
   "codeowners": [
