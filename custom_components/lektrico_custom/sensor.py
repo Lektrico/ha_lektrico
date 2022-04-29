@@ -217,13 +217,6 @@ SENSORS: tuple[LektricoSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
     ),
-    LedMaxBrightnessSensorEntityDescription(
-        key="led_max_brightness",
-        name="Led Brightness",
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.ILLUMINANCE,
-        native_unit_of_measurement=PERCENTAGE,
-    ),
 )
 
 
