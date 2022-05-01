@@ -18,6 +18,8 @@ from homeassistant.const import (
     ATTR_NAME,
     ATTR_SW_VERSION,
     CONF_FRIENDLY_NAME,
+    ELECTRIC_CURRENT_AMPERE,
+    PERCENTAGE,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -38,7 +40,9 @@ class LektricoNumberEntityDescription(NumberEntityDescription):
         return None
 
     @classmethod
-    def set_value(cls, device: lektricowifi.Charger, value: float) -> bool | None:
+    def set_value(
+        cls, device: lektricowifi.Charger, value: float, data: Any
+    ) -> bool | None:
         """Return None."""
         return None
 
@@ -53,11 +57,31 @@ class LedBrightnessNumberEntityDescription(LektricoNumberEntityDescription):
         return int(data.led_max_brightness)
 
     @classmethod
-    def set_value(cls, device: lektricowifi.Charger, value: float) -> bool:
+    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
         """Set the value for the led brightness in %, from 20 to 100"""
-
+        # Quick change the value displayed on the entity.
+        data.led_max_brightness = int(value)
         return device.send_command(
             f'app_config.set?config_key="led_max_brightness"&config_value={int(value)}'
+        )
+
+
+@dataclass
+class DynamicCurrentNumberEntityDescription(LektricoNumberEntityDescription):
+    """A class that describes the Lektrico Dynamic Current number entity."""
+
+    @classmethod
+    def get_value(cls, data: Any) -> int:
+        """Get the Lektrico Dynamic."""
+        return int(data.dynamic_current)
+
+    @classmethod
+    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
+        """Set the value of the dynamic current, as int between 0 and 32 A."""
+        # Quick change the value displayed on the entity.
+        data.dynamic_current = int(value)
+        return device.send_command(
+            f'dynamic_current.set?dynamic_current="{int(value)}"'
         )
 
 
@@ -68,6 +92,15 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         min_value=20,
         max_value=100,
         step=5,
+        unit_of_measurement=PERCENTAGE,
+    ),
+    DynamicCurrentNumberEntityDescription(
+        key="dynamic_current",
+        name="Dynamic Current",
+        min_value=0,
+        max_value=32,
+        step=1,
+        unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
     ),
 )
 
@@ -140,4 +173,8 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
 
     async def async_set_value(self, value: float) -> None:
         """Set the value of the number."""
-        await self.entity_description.set_value(self._lektrico_device.device, value)
+        await self.entity_description.set_value(
+            self._lektrico_device.device, value, self._lektrico_device.data
+        )
+        # Refresh the coordinator because some buttons change some values.
+        await self._lektrico_device.async_refresh()
