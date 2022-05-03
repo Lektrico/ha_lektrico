@@ -1,4 +1,4 @@
 {
     "name": "Lektrico Charging Station",
-    "domains": ["sensor", "binary_sensor", "button", "number"]
+    "domains": ["sensor", "binary_sensor", "button", "number", "switch"]
 }

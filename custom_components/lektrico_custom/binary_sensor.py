@@ -39,19 +39,21 @@ class LektricoBinarySensorEntityDescription(BinarySensorEntityDescription):
 
 
 @dataclass
-class HeadlessBinarySensorEntityDescription(LektricoBinarySensorEntityDescription):
-    """A class that describes the Lektrico No Authentication binary sensor entity."""
+class HasActiveErrorsBinarySensorEntityDescription(
+    LektricoBinarySensorEntityDescription
+):
+    """A class that describes the Lektrico Has Active Errors binary sensor entity."""
 
     @classmethod
     def get_is_on(cls, data: Any) -> bool:
-        """Get the headless."""
-        return bool(data.headless)
+        """Get the has_active_errors."""
+        return bool(data.has_active_errors)
 
 
 SENSORS: tuple[LektricoBinarySensorEntityDescription, ...] = (
-    HeadlessBinarySensorEntityDescription(
-        key="headless",
-        name="No Authentication",
+    HasActiveErrorsBinarySensorEntityDescription(
+        key="has_active_errors",
+        name="Has Active Errors",
     ),
 )
 
