@@ -67,7 +67,6 @@ class RequireAuthSwitchEntityDescription(LektricoSwitchEntityDescription):
     @classmethod
     def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
         """Turn off the RequireAuth switch."""
-        print("turn off")
         return device.send_command(
             'app_config.set?config_key="headless"&config_value="true"'
         )
