@@ -72,10 +72,38 @@ class RequireAuthSwitchEntityDescription(LektricoSwitchEntityDescription):
         )
 
 
+@dataclass
+class LockSwitchEntityDescription(LektricoSwitchEntityDescription):
+    """A class that describes the Lektrico Lock / Unlock Switch entity."""
+
+    @classmethod
+    def get_is_on(cls, data: Any) -> bool:
+        """Check if the reported state is LOCKED."""
+        return str(data.charger_state) == "LOCKED"
+
+    @classmethod
+    def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool:
+        """Lock the charger."""
+        return device.send_command(
+            'app_config.set?config_key="charger_locked"&config_value="true"'
+        )
+
+    @classmethod
+    def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
+        """Unlock the charger."""
+        return device.send_command(
+            'app_config.set?config_key="charger_locked"&config_value="false"'
+        )
+
+
 SENSORS: tuple[LektricoSwitchEntityDescription, ...] = (
     RequireAuthSwitchEntityDescription(
         key="require_auth",
         name="Require Auth",
+    ),
+    LockSwitchEntityDescription(
+        key="locked",
+        name="Lock",
     ),
 )
 
