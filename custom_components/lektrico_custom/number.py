@@ -58,7 +58,7 @@ class LedBrightnessNumberEntityDescription(LektricoNumberEntityDescription):
 
     @classmethod
     def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
-        """Set the value for the led brightness in %, from 20 to 100"""
+        """Set the value for the led brightness in %, from 20 to 100."""
         # Quick change the value displayed on the entity.
         data.led_max_brightness = int(value)
         return device.send_command(
@@ -85,6 +85,25 @@ class DynamicCurrentNumberEntityDescription(LektricoNumberEntityDescription):
         )
 
 
+@dataclass
+class UserCurrentNumberEntityDescription(LektricoNumberEntityDescription):
+    """A class that describes the Lektrico User Current number entity."""
+
+    @classmethod
+    def get_value(cls, data: Any) -> int:
+        """Get the Lektrico User Current."""
+        return int(data.user_current)
+
+    @classmethod
+    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
+        """Set the value of the user current, as int between 6 and 32 A."""
+        # Quick change the value displayed on the entity.
+        data.user_current = int(value)
+        return device.send_command(
+            f'app_config.set?config_key="user_current"&config_value="{int(value)}"'
+        )
+
+
 SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
     LedBrightnessNumberEntityDescription(
         key="led_max_brightness",
@@ -98,6 +117,14 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         key="dynamic_current",
         name="Dynamic Current",
         min_value=0,
+        max_value=32,
+        step=1,
+        unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
+    ),
+    UserCurrentNumberEntityDescription(
+        key="user_current",
+        name="User Current",
+        min_value=6,
         max_value=32,
         step=1,
         unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
