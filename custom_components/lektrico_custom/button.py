@@ -66,6 +66,26 @@ class ChargerRestartButtonEntityDescription(LektricoButtonEntityDescription):
         return device.send_command("device.reset")
 
 
+@dataclass
+class ChargerPauseButtonEntityDescription(LektricoButtonEntityDescription):
+    """A class that describes the Lektrico Charger Pause button entity."""
+
+    @classmethod
+    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+        """Command to pause the charger."""
+        return device.send_command("charge.pause")
+
+
+@dataclass
+class ChargerResumeButtonEntityDescription(LektricoButtonEntityDescription):
+    """A class that describes the Lektrico Charger Resume button entity."""
+
+    @classmethod
+    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+        """Command to resume the charger."""
+        return device.send_command("charge.resume")
+
+
 SENSORS: tuple[LektricoButtonEntityDescription, ...] = (
     ChargeStartButtonEntityDescription(
         key="charge_start",
@@ -78,6 +98,14 @@ SENSORS: tuple[LektricoButtonEntityDescription, ...] = (
     ChargerRestartButtonEntityDescription(
         key="charger_restart",
         name="Charger Restart",
+    ),
+    ChargerPauseButtonEntityDescription(
+        key="charge_pause",
+        name="Charge Pause",
+    ),
+    ChargerResumeButtonEntityDescription(
+        key="charge_resume",
+        name="Charge Resume",
     ),
 )
 
