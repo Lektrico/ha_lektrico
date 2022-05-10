@@ -9,17 +9,25 @@ This custom integration allows you to manage your [Lektrico EV Charger](https://
 Configuration can be done on UI, you need to enter the IP of your charger.
 
 ## Supported entities ##
+- Charge Pause
+- Charge Resume
+- Charge Stop
+- Charger Restart
+- Charger Start
 - Charger State
 - Charging Time
 - Current
 - Dynamic Current
+- Errors
 - Install Current
 - Install Power
 - Led Brightness
-- No Authentication
+- Lock
+- Require Auth
 - Session Energy
 - Temperature
 - Total Charged Energy
+- User Current
 - Voltage
 
 ## Device Info ##
