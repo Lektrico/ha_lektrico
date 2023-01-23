@@ -6,19 +6,9 @@ from typing import Any
 
 import lektricowifi
 
-from homeassistant.components.switch import (
-    SwitchEntity,
-    SwitchEntityDescription,
-)
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_IDENTIFIERS,
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_NAME,
-    ATTR_SW_VERSION,
-    CONF_FRIENDLY_NAME,
-)
+from homeassistant.const import CONF_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -38,12 +28,12 @@ class LektricoSwitchEntityDescription(SwitchEntityDescription):
         return None
 
     @classmethod
-    def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool | None:
+    async def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool | None:
         """Return None."""
         return None
 
     @classmethod
-    def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool | None:
+    async def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool | None:
         """Return None."""
         return None
 
@@ -58,17 +48,21 @@ class RequireAuthSwitchEntityDescription(LektricoSwitchEntityDescription):
         return bool(data.require_auth)
 
     @classmethod
-    def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool:
+    async def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool:
         """Turn on the RequireAuth switch."""
-        return device.send_command(
-            'app_config.set?config_key="headless"&config_value="false"'
+        return bool(
+            await device.send_command(
+                'app_config.set?config_key="headless"&config_value="false"'
+            )
         )
 
     @classmethod
-    def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
+    async def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
         """Turn off the RequireAuth switch."""
-        return device.send_command(
-            'app_config.set?config_key="headless"&config_value="true"'
+        return bool(
+            await device.send_command(
+                'app_config.set?config_key="headless"&config_value="true"'
+            )
         )
 
 
@@ -82,24 +76,28 @@ class LockSwitchEntityDescription(LektricoSwitchEntityDescription):
         return str(data.charger_state) == "LOCKED"
 
     @classmethod
-    def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool:
+    async def turn_on(cls, device: lektricowifi.Charger, data: Any) -> bool:
         """Lock the charger."""
-        return device.send_command(
-            'app_config.set?config_key="charger_locked"&config_value="true"'
+        return bool(
+            await device.send_command(
+                'app_config.set?config_key="charger_locked"&config_value="true"'
+            )
         )
 
     @classmethod
-    def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
+    async def turn_off(cls, device: lektricowifi.Charger, data: Any) -> bool:
         """Unlock the charger."""
-        return device.send_command(
-            'app_config.set?config_key="charger_locked"&config_value="false"'
+        return bool(
+            await device.send_command(
+                'app_config.set?config_key="charger_locked"&config_value="false"'
+            )
         )
 
 
 SENSORS: tuple[LektricoSwitchEntityDescription, ...] = (
     RequireAuthSwitchEntityDescription(
         key="require_auth",
-        name="Require Auth",
+        name="Require auth",
     ),
     LockSwitchEntityDescription(
         key="locked",
@@ -114,73 +112,60 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
-    _lektrico_device: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.entry_id
-    ]
-    sensors = [
+    coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
         LektricoSwitch(
-            sensor_desc,
-            _lektrico_device,
+            description,
+            coordinator,
             entry.data[CONF_FRIENDLY_NAME],
         )
-        for sensor_desc in SENSORS
-    ]
-
-    async_add_entities(sensors, False)
+        for description in SENSORS
+    )
 
 
 class LektricoSwitch(CoordinatorEntity, SwitchEntity):
     """The entity class for Lektrico charging stations switches."""
 
     entity_description: LektricoSwitchEntityDescription
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         description: LektricoSwitchEntityDescription,
-        _lektrico_device: LektricoDeviceDataUpdateCoordinator,
+        coordinator: LektricoDeviceDataUpdateCoordinator,
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
-        super().__init__(_lektrico_device)
-        self.friendly_name = friendly_name
-        self.serial_number = _lektrico_device.serial_number
-        self.board_revision = _lektrico_device.board_revision
+        super().__init__(coordinator)
         self.entity_description = description
 
-        self._attr_name = f"{self.friendly_name} {description.name}"
-        self._attr_unique_id = f"{self.serial_number}_{description.name}"
-        # ex: 500006_No Authorisation
-
-        self._lektrico_device = _lektrico_device
+        self._attr_unique_id = f"{coordinator.serial_number}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.serial_number)},
+            model=f"1P7K {coordinator.serial_number} rev.{coordinator.board_revision}",
+            name=friendly_name,
+            manufacturer="Lektrico",
+            sw_version=coordinator.data.fw_version,
+        )
 
     @property
     def is_on(self) -> bool:
         """If the switch is currently on or off."""
-        return self.entity_description.get_is_on(self._lektrico_device.data)
+        return bool(self.entity_description.get_is_on(self.coordinator.data))
 
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         await self.entity_description.turn_on(
-            self._lektrico_device.device, self._lektrico_device.data
+            self.coordinator.device, self.coordinator.data
         )
-        # Refresh the coordinator because a swicth changed a value.
-        await self._lektrico_device.async_refresh()
+        # Refresh the coordinator because a switch changed a value.
+        await self.coordinator.async_refresh()
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         await self.entity_description.turn_off(
-            self._lektrico_device.device, self._lektrico_device.data
+            self.coordinator.device, self.coordinator.data
         )
-        # Refresh the coordinator because a swicth changed a value.
-        await self._lektrico_device.async_refresh()
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this Lektrico charger."""
-        return {
-            ATTR_IDENTIFIERS: {(DOMAIN, self.serial_number)},
-            ATTR_NAME: self.friendly_name,
-            ATTR_MANUFACTURER: "Lektrico",
-            ATTR_MODEL: f"1P7K {self.serial_number} rev.{self.board_revision}",
-            ATTR_SW_VERSION: self._lektrico_device.data.fw_version,
-        }
+        # Refresh the coordinator because a switch changed a value.
+        await self.coordinator.async_refresh()

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,14 +13,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_IDENTIFIERS,
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_NAME,
-    ATTR_SW_VERSION,
-    CONF_FRIENDLY_NAME,
-)
+from homeassistant.const import CONF_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -33,10 +27,7 @@ from .const import DOMAIN
 class LektricoBinarySensorEntityDescription(BinarySensorEntityDescription):
     """A class that describes the Lektrico binary sensor entities."""
 
-    @classmethod
-    def get_is_on(cls, data: Any) -> bool | None:
-        """Return None."""
-        return None
+    get_is_on: Callable[[Any], bool] | None = None
 
 
 @dataclass
@@ -46,25 +37,20 @@ class HasActiveErrorsBinarySensorEntityDescription(
     """A class that describes the Lektrico Has Active Errors binary sensor entity."""
 
     @classmethod
-    def get_is_on(cls, data: Any) -> bool:
-        """Get the has_active_errors."""
-        return bool(data.has_active_errors)
-
-    @classmethod
     def set_extra_state_att(cls, lektrico_binary_sensor: LektricoBinarySensor) -> None:
         """Get the has_active_errors."""
         if hasattr(
-            lektrico_binary_sensor.lektrico_device.data, "state_machine_e_activated"
+            lektrico_binary_sensor.coordinator.data, "state_machine_e_activated"
         ):
             # error types exist => set their values in _attr_extra_state_attributes
             lektrico_binary_sensor.set_attr_extra_state_attributes_for_errors(
-                lektrico_binary_sensor.lektrico_device.data.state_machine_e_activated,
-                lektrico_binary_sensor.lektrico_device.data.overtemp,
-                lektrico_binary_sensor.lektrico_device.data.critical_temp,
-                lektrico_binary_sensor.lektrico_device.data.overcurrent,
-                lektrico_binary_sensor.lektrico_device.data.meter_fault,
-                lektrico_binary_sensor.lektrico_device.data.voltage_error,
-                lektrico_binary_sensor.lektrico_device.data.rcd_error,
+                lektrico_binary_sensor.coordinator.data.state_machine_e_activated,
+                lektrico_binary_sensor.coordinator.data.overtemp,
+                lektrico_binary_sensor.coordinator.data.critical_temp,
+                lektrico_binary_sensor.coordinator.data.overcurrent,
+                lektrico_binary_sensor.coordinator.data.meter_fault,
+                lektrico_binary_sensor.coordinator.data.voltage_error,
+                lektrico_binary_sensor.coordinator.data.rcd_error,
             )
 
 
@@ -73,6 +59,7 @@ SENSORS: tuple[LektricoBinarySensorEntityDescription, ...] = (
         key="has_active_errors",
         name="Errors",
         device_class=BinarySensorDeviceClass.PROBLEM,
+        get_is_on=lambda data: bool(data.has_active_errors),
     ),
 )
 
@@ -83,44 +70,42 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
-    _lektrico_device: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.entry_id
-    ]
-    sensors = [
+    coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
         LektricoBinarySensor(
-            sensor_desc,
-            _lektrico_device,
+            description,
+            coordinator,
             entry.data[CONF_FRIENDLY_NAME],
         )
-        for sensor_desc in SENSORS
-    ]
-
-    async_add_entities(sensors, False)
+        for description in SENSORS
+    )
 
 
 class LektricoBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """The entity class for Lektrico charging stations binary sensors."""
 
     entity_description: LektricoBinarySensorEntityDescription
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         description: LektricoBinarySensorEntityDescription,
-        _lektrico_device: LektricoDeviceDataUpdateCoordinator,
+        coordinator: LektricoDeviceDataUpdateCoordinator,
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
-        super().__init__(_lektrico_device)
-        self.friendly_name = friendly_name
-        self.serial_number = _lektrico_device.serial_number
-        self.board_revision = _lektrico_device.board_revision
+        super().__init__(coordinator)
         self.entity_description = description
 
-        self._attr_name = f"{self.friendly_name} {description.name}"
-        self._attr_unique_id = f"{self.serial_number}_{description.name}"
-        # ex: 500006_No Authorisation
-
-        self.lektrico_device = _lektrico_device
+        self._attr_unique_id = f"{coordinator.serial_number}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.serial_number)},
+            model=f"1P7K {coordinator.serial_number} rev.{coordinator.board_revision}",
+            name=friendly_name,
+            manufacturer="Lektrico",
+            sw_version=coordinator.data.fw_version,
+        )
 
         # add extra_state_attributes for HasActiveErrorsBinarySensorEntityDescription
         if isinstance(description, HasActiveErrorsBinarySensorEntityDescription):
@@ -142,18 +127,9 @@ class LektricoBinarySensor(CoordinatorEntity, BinarySensorEntity):
             self.entity_description, HasActiveErrorsBinarySensorEntityDescription
         ):
             self.entity_description.set_extra_state_att(self)
-        return self.entity_description.get_is_on(self.lektrico_device.data)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this Lektrico charger."""
-        return {
-            ATTR_IDENTIFIERS: {(DOMAIN, self.serial_number)},
-            ATTR_NAME: self.friendly_name,
-            ATTR_MANUFACTURER: "Lektrico",
-            ATTR_MODEL: f"1P7K {self.serial_number} rev.{self.board_revision}",
-            ATTR_SW_VERSION: self.lektrico_device.data.fw_version,
-        }
+        if self.entity_description.get_is_on is None:
+            return None
+        return self.entity_description.get_is_on(self.coordinator.data)
 
     def set_attr_extra_state_attributes_for_errors(
         self,

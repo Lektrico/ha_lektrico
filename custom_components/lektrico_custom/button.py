@@ -8,17 +8,9 @@ import lektricowifi
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_IDENTIFIERS,
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_NAME,
-    ATTR_SW_VERSION,
-    CONF_FRIENDLY_NAME,
-)
+from homeassistant.const import CONF_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
-
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -31,7 +23,7 @@ class LektricoButtonEntityDescription(ButtonEntityDescription):
     """A class that describes the Lektrico button entities."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool | None:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool | None:
         """Return None."""
         return None
 
@@ -41,9 +33,9 @@ class ChargeStartButtonEntityDescription(LektricoButtonEntityDescription):
     """A class that describes the Lektrico Charge Start button entity."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool:
         """Command to start charging."""
-        return device.send_command("charge.start")
+        return bool(await device.send_command("charge.start"))
 
 
 @dataclass
@@ -51,9 +43,9 @@ class ChargeStopButtonEntityDescription(LektricoButtonEntityDescription):
     """A class that describes the Lektrico Charge Stop button entity."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool:
         """Command to stop charging."""
-        return device.send_command("charge.stop")
+        return bool(await device.send_command("charge.stop"))
 
 
 @dataclass
@@ -61,9 +53,9 @@ class ChargerRestartButtonEntityDescription(LektricoButtonEntityDescription):
     """A class that describes the Lektrico Charger Restart button entity."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool:
         """Command to restart the charger."""
-        return device.send_command("device.reset")
+        return bool(await device.send_command("device.reset"))
 
 
 @dataclass
@@ -71,9 +63,9 @@ class ChargerPauseButtonEntityDescription(LektricoButtonEntityDescription):
     """A class that describes the Lektrico Charger Pause button entity."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool:
         """Command to pause the charger."""
-        return device.send_command("charge.pause")
+        return bool(await device.send_command("charge.pause"))
 
 
 @dataclass
@@ -81,31 +73,31 @@ class ChargerResumeButtonEntityDescription(LektricoButtonEntityDescription):
     """A class that describes the Lektrico Charger Resume button entity."""
 
     @classmethod
-    def get_async_press(cls, device: lektricowifi.Charger) -> bool:
+    async def get_async_press(cls, device: lektricowifi.Charger) -> bool:
         """Command to resume the charger."""
-        return device.send_command("charge.resume")
+        return bool(await device.send_command("charge.resume"))
 
 
 SENSORS: tuple[LektricoButtonEntityDescription, ...] = (
     ChargeStartButtonEntityDescription(
         key="charge_start",
-        name="Charger Start",
+        name="Charger start",
     ),
     ChargeStopButtonEntityDescription(
         key="charge_stop",
-        name="Charge Stop",
+        name="Charge stop",
     ),
     ChargerRestartButtonEntityDescription(
         key="charger_restart",
-        name="Charger Restart",
+        name="Charger restart",
     ),
     ChargerPauseButtonEntityDescription(
         key="charge_pause",
-        name="Charge Pause",
+        name="Charge pause",
     ),
     ChargerResumeButtonEntityDescription(
         key="charge_resume",
-        name="Charge Resume",
+        name="Charge resume",
     ),
 )
 
@@ -116,55 +108,43 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
-    _lektrico_device: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.entry_id
-    ]
-    sensors = [
+    coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
         LektricoButton(
-            sensor_desc,
-            _lektrico_device,
+            description,
+            coordinator,
             entry.data[CONF_FRIENDLY_NAME],
         )
-        for sensor_desc in SENSORS
-    ]
-
-    async_add_entities(sensors, False)
+        for description in SENSORS
+    )
 
 
 class LektricoButton(CoordinatorEntity, ButtonEntity):
     """The entity class for Lektrico charging stations binary sensors."""
 
     entity_description: LektricoButtonEntityDescription
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         description: LektricoButtonEntityDescription,
-        _lektrico_device: LektricoDeviceDataUpdateCoordinator,
+        coordinator: LektricoDeviceDataUpdateCoordinator,
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
-        super().__init__(_lektrico_device)
-        self.friendly_name = friendly_name
-        self.serial_number = _lektrico_device.serial_number
-        self.board_revision = _lektrico_device.board_revision
+        super().__init__(coordinator)
         self.entity_description = description
 
-        self._attr_name = f"{self.friendly_name} {description.name}"
-        self._attr_unique_id = f"{self.serial_number}_{description.name}"
-
-        self._lektrico_device = _lektrico_device
+        self._attr_unique_id = f"{coordinator.serial_number}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.serial_number)},
+            model=f"1P7K {coordinator.serial_number} rev.{coordinator.board_revision}",
+            name=friendly_name,
+            manufacturer="Lektrico",
+            sw_version=coordinator.data.fw_version,
+        )
 
     async def async_press(self) -> None:
-        """Send the command coresponding to the pressed button."""
-        await self.entity_description.get_async_press(self._lektrico_device.device)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this Lektrico charger."""
-        return {
-            ATTR_IDENTIFIERS: {(DOMAIN, self.serial_number)},
-            ATTR_NAME: self.friendly_name,
-            ATTR_MANUFACTURER: "Lektrico",
-            ATTR_MODEL: f"1P7K {self.serial_number} rev.{self.board_revision}",
-            ATTR_SW_VERSION: self._lektrico_device.data.fw_version,
-        }
+        """Send the command corresponding to the pressed button."""
+        await self.entity_description.get_async_press(self.coordinator.device)

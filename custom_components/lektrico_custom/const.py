@@ -1,7 +1,7 @@
 """Constants for the Lektrico Charging Station integration."""
 
 # Integration domain
-DOMAIN = "lektrico_custom"
+DOMAIN = "lektrico"
 
 # Services
 SERVICE_IDENTIFY = "identify"

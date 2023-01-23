@@ -9,8 +9,6 @@ from lektricowifi import lektricowifi
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_FRIENDLY_NAME, CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -39,20 +37,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=session,
     )
 
-    # Ensure we can connect to it
-    try:
-        await charger.charger_info()
-    except lektricowifi.ChargerConnectionError as exception:
-        raise ConfigEntryNotReady("Unable to connect") from exception
-
     settings = await charger.charger_config()
-    _lektrico_device = LektricoDeviceDataUpdateCoordinator(
+    coordinator = LektricoDeviceDataUpdateCoordinator(
         charger, hass, entry.data[CONF_FRIENDLY_NAME], settings
     )
 
-    await _lektrico_device.async_config_entry_first_refresh()
+    await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = _lektrico_device
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
     return True
@@ -95,14 +87,4 @@ class LektricoDeviceDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> lektricowifi.Info:
         """Async Update device state."""
-        a_data = self.device.charger_info()
-        data = await a_data
-        entity_reg = er.async_get(self._hass)
-        my_entry = entity_reg.async_get(f"sensor.{self.friendly_name}_charger_state")
-        if my_entry is not None:
-            dev_reg = dr.async_get(self._hass)
-            if my_entry.device_id is not None:
-                device = dev_reg.async_get(my_entry.device_id)
-                if device is not None:
-                    dev_reg.async_update_device(device.id, sw_version=data.fw_version)
-        return data
+        return await self.device.charger_info()

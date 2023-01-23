@@ -1,26 +1,15 @@
 """Support for Lektrico charging station numbers."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import lektricowifi
 
-from homeassistant.components.number import (
-    NumberEntity,
-    NumberEntityDescription,
-)
+from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_IDENTIFIERS,
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_NAME,
-    ATTR_SW_VERSION,
-    CONF_FRIENDLY_NAME,
-    ELECTRIC_CURRENT_AMPERE,
-    PERCENTAGE,
-)
+from homeassistant.const import CONF_FRIENDLY_NAME, ELECTRIC_CURRENT_AMPERE, PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -34,13 +23,10 @@ from .const import DOMAIN
 class LektricoNumberEntityDescription(NumberEntityDescription):
     """A class that describes the Lektrico number entities."""
 
-    @classmethod
-    def get_value(cls, data: Any) -> int | None:
-        """Return None."""
-        return None
+    value: Callable[[Any], int] | None = None
 
     @classmethod
-    def set_value(
+    async def set_value(
         cls, device: lektricowifi.Charger, value: float, data: Any
     ) -> bool | None:
         """Return None."""
@@ -52,17 +38,16 @@ class LedBrightnessNumberEntityDescription(LektricoNumberEntityDescription):
     """A class that describes the Lektrico Led Brightness number entity."""
 
     @classmethod
-    def get_value(cls, data: Any) -> int:
-        """Get the Led Brightness."""
-        return int(data.led_max_brightness)
-
-    @classmethod
-    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
+    async def set_value(
+        cls, device: lektricowifi.Charger, value: float, data: Any
+    ) -> bool:
         """Set the value for the led brightness in %, from 20 to 100."""
         # Quick change the value displayed on the entity.
         data.led_max_brightness = int(value)
-        return device.send_command(
-            f'app_config.set?config_key="led_max_brightness"&config_value={int(value)}'
+        return bool(
+            await device.send_command(
+                f'app_config.set?config_key="led_max_brightness"&config_value={int(value)}'
+            )
         )
 
 
@@ -71,17 +56,16 @@ class DynamicCurrentNumberEntityDescription(LektricoNumberEntityDescription):
     """A class that describes the Lektrico Dynamic Current number entity."""
 
     @classmethod
-    def get_value(cls, data: Any) -> int:
-        """Get the Lektrico Dynamic."""
-        return int(data.dynamic_current)
-
-    @classmethod
-    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
+    async def set_value(
+        cls, device: lektricowifi.Charger, value: float, data: Any
+    ) -> bool:
         """Set the value of the dynamic current, as int between 0 and 32 A."""
         # Quick change the value displayed on the entity.
         data.dynamic_current = int(value)
-        return device.send_command(
-            f'dynamic_current.set?dynamic_current="{int(value)}"'
+        return bool(
+            await device.send_command(
+                f'dynamic_current.set?dynamic_current="{int(value)}"'
+            )
         )
 
 
@@ -90,44 +74,46 @@ class UserCurrentNumberEntityDescription(LektricoNumberEntityDescription):
     """A class that describes the Lektrico User Current number entity."""
 
     @classmethod
-    def get_value(cls, data: Any) -> int:
-        """Get the Lektrico User Current."""
-        return int(data.user_current)
-
-    @classmethod
-    def set_value(cls, device: lektricowifi.Charger, value: float, data: Any) -> bool:
+    async def set_value(
+        cls, device: lektricowifi.Charger, value: float, data: Any
+    ) -> bool:
         """Set the value of the user current, as int between 6 and 32 A."""
         # Quick change the value displayed on the entity.
         data.user_current = int(value)
-        return device.send_command(
-            f'app_config.set?config_key="user_current"&config_value="{int(value)}"'
+        return bool(
+            await device.send_command(
+                f'app_config.set?config_key="user_current"&config_value="{int(value)}"'
+            )
         )
 
 
 SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
     LedBrightnessNumberEntityDescription(
         key="led_max_brightness",
-        name="Led Brightness",
-        min_value=20,
-        max_value=100,
-        step=5,
-        unit_of_measurement=PERCENTAGE,
+        name="Led brightness",
+        native_min_value=20,
+        native_max_value=100,
+        native_step=5,
+        native_unit_of_measurement=PERCENTAGE,
+        value=lambda data: int(data.led_max_brightness),
     ),
     DynamicCurrentNumberEntityDescription(
         key="dynamic_current",
-        name="Dynamic Current",
-        min_value=0,
-        max_value=32,
-        step=1,
-        unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
+        name="Dynamic current",
+        native_min_value=0,
+        native_max_value=32,
+        native_step=1,
+        native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
+        value=lambda data: int(data.dynamic_current),
     ),
     UserCurrentNumberEntityDescription(
         key="user_current",
-        name="User Current",
-        min_value=6,
-        max_value=32,
-        step=1,
-        unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
+        name="User current",
+        native_min_value=6,
+        native_max_value=32,
+        native_step=1,
+        native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
+        value=lambda data: int(data.user_current),
     ),
 )
 
@@ -138,70 +124,62 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
-    _lektrico_device: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.entry_id
-    ]
-    sensors = [
+    coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
         LektricoNumber(
-            sensor_desc,
-            _lektrico_device,
+            description,
+            coordinator,
             entry.data[CONF_FRIENDLY_NAME],
         )
-        for sensor_desc in SENSORS
-    ]
-
-    async_add_entities(sensors, False)
+        for description in SENSORS
+    )
 
 
 class LektricoNumber(CoordinatorEntity, NumberEntity):
     """The entity class for Lektrico charging stations numbers."""
 
     entity_description: LektricoNumberEntityDescription
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         description: LektricoNumberEntityDescription,
-        _lektrico_device: LektricoDeviceDataUpdateCoordinator,
+        coordinator: LektricoDeviceDataUpdateCoordinator,
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
-        super().__init__(_lektrico_device)
-        self.friendly_name = friendly_name
-        self.serial_number = _lektrico_device.serial_number
-        self.board_revision = _lektrico_device.board_revision
+        super().__init__(coordinator)
         self.entity_description = description
 
-        self._attr_name = f"{self.friendly_name} {description.name}"
-        self._attr_unique_id = f"{self.serial_number}_{description.name}"
-        # ex: 500006_No Authorisation
+        self._attr_unique_id = f"{coordinator.serial_number}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.serial_number)},
+            model=f"1P7K {coordinator.serial_number} rev.{coordinator.board_revision}",
+            name=friendly_name,
+            manufacturer="Lektrico",
+            sw_version=coordinator.data.fw_version,
+        )
 
-        self._lektrico_device = _lektrico_device
-
-        self._attr_value = 20
-        self._attr_step = description.step
-        self._attr_max_value = description.max_value
-        self._attr_min_value = description.min_value
+        self._attr_native_value = 20
+        if description.native_step is not None:
+            self._attr_native_step = description.native_step
+        if description.native_max_value is not None:
+            self._attr_native_max_value = description.native_max_value
+        if description.native_min_value is not None:
+            self._attr_native_min_value = description.native_min_value
 
     @property
-    def value(self) -> int:
+    def native_value(self) -> int | None:
         """Return the value of the number as integer."""
-        return self.entity_description.get_value(self._lektrico_device.data)
+        if self.entity_description.value is None:
+            return None
+        return self.entity_description.value(self.coordinator.data)
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this Lektrico charger."""
-        return {
-            ATTR_IDENTIFIERS: {(DOMAIN, self.serial_number)},
-            ATTR_NAME: self.friendly_name,
-            ATTR_MANUFACTURER: "Lektrico",
-            ATTR_MODEL: f"1P7K {self.serial_number} rev.{self.board_revision}",
-            ATTR_SW_VERSION: self._lektrico_device.data.fw_version,
-        }
-
-    async def async_set_value(self, value: float) -> None:
+    async def async_set_native_value(self, value: float) -> None:
         """Set the value of the number."""
         await self.entity_description.set_value(
-            self._lektrico_device.device, value, self._lektrico_device.data
+            self.coordinator.device, value, self.coordinator.data
         )
         # Refresh the coordinator because some buttons change some values.
-        await self._lektrico_device.async_refresh()
+        await self.coordinator.async_refresh()
