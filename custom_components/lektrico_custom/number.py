@@ -124,6 +124,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
+    print("in async_setup_entry")
     coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities(
@@ -149,6 +150,7 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
+        print("in LektricoNumber __init__")
         super().__init__(coordinator)
         self.entity_description = description
 
@@ -172,12 +174,14 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     @property
     def native_value(self) -> int | None:
         """Return the value of the number as integer."""
+        print("in native_value")
         if self.entity_description.my_value is None:
             return None
         return self.entity_description.my_value(self.coordinator.data)
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the value of the number."""
+        print("in async_set_native_value")
         await self.entity_description.set_native_value(
             self.coordinator.device, value, self.coordinator.data
         )
