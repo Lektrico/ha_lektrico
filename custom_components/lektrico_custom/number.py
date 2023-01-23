@@ -23,7 +23,7 @@ from .const import DOMAIN
 class LektricoNumberEntityDescription(NumberEntityDescription):
     """A class that describes the Lektrico number entities."""
 
-    value: Callable[[Any], int] | None = None
+    my_value: Callable[[Any], int] | None = None
 
     @classmethod
     async def set_native_value(
@@ -95,7 +95,7 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=100,
         native_step=5,
         native_unit_of_measurement=PERCENTAGE,
-        value=lambda data: int(data.led_max_brightness),
+        my_value=lambda data: int(data.led_max_brightness),
     ),
     DynamicCurrentNumberEntityDescription(
         key="dynamic_current",
@@ -104,7 +104,7 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=32,
         native_step=1,
         native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
-        value=lambda data: int(data.dynamic_current),
+        my_value=lambda data: int(data.dynamic_current),
     ),
     UserCurrentNumberEntityDescription(
         key="user_current",
@@ -113,7 +113,7 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=32,
         native_step=1,
         native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
-        value=lambda data: int(data.user_current),
+        my_value=lambda data: int(data.user_current),
     ),
 )
 
@@ -172,9 +172,9 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     @property
     def native_value(self) -> int | None:
         """Return the value of the number as integer."""
-        if self.entity_description.value is None:
+        if self.entity_description.my_value is None:
             return None
-        return self.entity_description.value(self.coordinator.data)
+        return self.entity_description.my_value(self.coordinator.data)
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the value of the number."""
