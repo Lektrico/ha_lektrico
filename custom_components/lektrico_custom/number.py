@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import lektricowifi
+import logging
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -117,6 +118,8 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
     ),
 )
 
+_LOGGER = logging.getLogger("homeassistant.components.lektrico")
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -125,6 +128,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
     print("in async_setup_entry")
+    _LOGGER.warn("in async_setup_entry")
     coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities(
@@ -151,6 +155,7 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     ) -> None:
         """Initialize Lektrico charger."""
         print("in LektricoNumber __init__")
+        _LOGGER.warn("in LektricoNumber __init__")
         super().__init__(coordinator)
         self.entity_description = description
 
@@ -175,6 +180,7 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     def native_value(self) -> int | None:
         """Return the value of the number as integer."""
         print("in native_value")
+        _LOGGER.warn("in native_value")
         if self.entity_description.my_value is None:
             return None
         return self.entity_description.my_value(self.coordinator.data)
@@ -182,6 +188,7 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the value of the number."""
         print("in async_set_native_value")
+        _LOGGER.warn("in async_set_native_value")
         await self.entity_description.set_native_value(
             self.coordinator.device, value, self.coordinator.data
         )
