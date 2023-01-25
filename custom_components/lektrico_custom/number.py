@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import lektricowifi
-import logging
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -24,7 +23,7 @@ from .const import DOMAIN
 class LektricoNumberEntityDescription(NumberEntityDescription):
     """A class that describes the Lektrico number entities."""
 
-    my_value: Callable[[Any], int] | None = None
+    value: Callable[[Any], int] | None = None
 
     @classmethod
     async def set_native_value(
@@ -96,7 +95,7 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=100,
         native_step=5,
         native_unit_of_measurement=PERCENTAGE,
-        my_value=lambda data: int(data.led_max_brightness),
+        value=lambda data: int(data.led_max_brightness),
     ),
     DynamicCurrentNumberEntityDescription(
         key="dynamic_current",
@@ -105,7 +104,7 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=32,
         native_step=1,
         native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
-        my_value=lambda data: int(data.dynamic_current),
+        value=lambda data: int(data.dynamic_current),
     ),
     UserCurrentNumberEntityDescription(
         key="user_current",
@@ -114,11 +113,9 @@ SENSORS: tuple[LektricoNumberEntityDescription, ...] = (
         native_max_value=32,
         native_step=1,
         native_unit_of_measurement=ELECTRIC_CURRENT_AMPERE,
-        my_value=lambda data: int(data.user_current),
+        value=lambda data: int(data.user_current),
     ),
 )
-
-_LOGGER = logging.getLogger("homeassistant.components.lektrico")
 
 
 async def async_setup_entry(
@@ -127,8 +124,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Lektrico charger based on a config entry."""
-    print("in async_setup_entry")
-    _LOGGER.warn("in async_setup_entry")
     coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities(
@@ -154,8 +149,6 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
         friendly_name: str,
     ) -> None:
         """Initialize Lektrico charger."""
-        print("in LektricoNumber __init__")
-        _LOGGER.warn("in LektricoNumber __init__")
         super().__init__(coordinator)
         self.entity_description = description
 
@@ -179,16 +172,12 @@ class LektricoNumber(CoordinatorEntity, NumberEntity):
     @property
     def native_value(self) -> int | None:
         """Return the value of the number as integer."""
-        print("in native_value")
-        _LOGGER.warn("in native_value")
-        if self.entity_description.my_value is None:
+        if self.entity_description.value is None:
             return None
-        return self.entity_description.my_value(self.coordinator.data)
+        return self.entity_description.value(self.coordinator.data)
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the value of the number."""
-        print("in async_set_native_value")
-        _LOGGER.warn("in async_set_native_value")
         await self.entity_description.set_native_value(
             self.coordinator.device, value, self.coordinator.data
         )
