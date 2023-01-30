@@ -110,7 +110,7 @@ class LektricoBinarySensor(CoordinatorEntity, BinarySensorEntity):
         # add extra_state_attributes for HasActiveErrorsBinarySensorEntityDescription
         if isinstance(description, HasActiveErrorsBinarySensorEntityDescription):
             self._attr_extra_state_attributes = {
-                "state_e_activated": "",
+                "state_machine_e_activated": "",
                 "overtemp": "",
                 "critical_temp": "",
                 "overcurrent": "",
@@ -142,7 +142,7 @@ class LektricoBinarySensor(CoordinatorEntity, BinarySensorEntity):
         value7: bool,
     ) -> None:
         """Set _attr_extra_state_attributes for HasActiveErrors binary sensor."""
-        self._attr_extra_state_attributes["state_e_activated"] = value1
+        self._attr_extra_state_attributes["state_machine_e_activated"] = value1
         self._attr_extra_state_attributes["overtemp"] = value2
         self._attr_extra_state_attributes["critical_temp"] = value3
         self._attr_extra_state_attributes["overcurrent"] = value4
