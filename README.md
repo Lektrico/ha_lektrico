@@ -3,32 +3,41 @@
 Custom Component for [Home Assistant](http://www.home-assistant.io).
 
 # Lektrico Charging Station
-This custom integration allows you to manage your [Lektrico EV Charger](https://lektri.co/charging-solutions/1p7k/).
+This custom integration allows you to manage your [Lektrico EV Charger](https://lektri.co/charging-solutions/1p7k/) and your EM Load balancing device.
 
 ## Installation ##
 Configuration can be done on UI, you need to enter the IP of your charger.
+Lektrico devices are also discoverable with Zeroconf.
 
-## Supported entities ##
-- Charge Pause
-- Charge Resume
+## Supported entities for EV Charger##
+- Charge Start
 - Charge Stop
-- Charger Restart
-- Charger Start
-- Charger State
-- Charging Time
+- Reboot
+- State
+- Charging time
 - Current
-- Dynamic Current
-- Errors
-- Install Current
-- Install Power
-- Led Brightness
-- Lock
-- Require Auth
-- Session Energy
+- Installation current
+- Power
+- Energy
 - Temperature
-- Total Charged Energy
-- User Current
+- Lifetime energy
 - Voltage
+- Limit reason
+- Led brightness
+- Dynamic limit
+- User limit
+- Errors
+- Lock
+- Authentication
+
+## Supported entities for Load Balancer device##
+- LB mode
+- Current
+- Voltage
+- Power
+- Breaker current
+- PF
+- Reboot
 
 ## Device Info ##
 - Name
