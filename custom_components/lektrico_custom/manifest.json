@@ -4,12 +4,12 @@
   "config_flow": true,
   "documentation": "https://github.com/mtarjoianu/ha_lektrico",
   "issue_tracker": "https://github.com/mtarjoianu/ha_lektrico/issues",
-  "requirements": ["lektricowifi==0.0.24"],
+  "requirements": ["lektricowifi==0.0.25"],
   "dependencies": ["zeroconf"],
   "integration_type": "device",
   "codeowners": ["@mtarjoianu"],
   "iot_class": "local_polling",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "zeroconf": [
     {
       "type": "_http._tcp.local.",
