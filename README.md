@@ -2,6 +2,8 @@
 
 Custom Component for [Home Assistant](http://www.home-assistant.io).
 
+![LEKTRI.CO](https://lektri.co/wp-content/uploads/2023/06/logo-wbg.png)
+
 # Lektrico Charging Station
 This custom integration allows you to manage your [Lektrico EV Charger](https://lektri.co/charging-solutions/1p7k/) and your [Lektrico Load Balancer](https://lektri.co/charging-solutions/smart-load-balancing/) device that are in your wifi network.
 
