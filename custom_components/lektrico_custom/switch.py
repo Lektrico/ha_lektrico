@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import lektricowifi
+from lektricowifi import Device
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -76,9 +77,31 @@ class LockSwitchEntityDescription(LektricoSwitchEntityDescription):
     async def turn_off(cls, device: lektricowifi.Device, data: Any) -> bool:
         """Unlock the charger."""
         return bool(await device.set_charger_locked(False))
+    
+
+    
+
+@dataclass
+class ForceSinglePhaseSwitchEntityDescription(LektricoSwitchEntityDescription):
+    """A class that describes the Lektrico Force_Single_Phase Switch entity."""
+
+    @classmethod
+    def get_is_on(cls, data: Any) -> bool:
+        """Check if the reported state is Single_Phase."""
+        return int(data.relay_mode) == 1
+
+    @classmethod
+    async def turn_on(cls, device: lektricowifi.Device, data: Any) -> bool:
+        """Force single phase to the charger."""
+        return bool(await device.set_relay_mode(data.dynamic_current, 1))
+
+    @classmethod
+    async def turn_off(cls, device: lektricowifi.Device, data: Any) -> bool:
+        """Disable single phase on the charger."""
+        return bool(await device.set_relay_mode(data.dynamic_current, 3))
 
 
-SENSORS: tuple[LektricoSwitchEntityDescription, ...] = (
+SWITCHES_FOR_ALL: tuple[LektricoSwitchEntityDescription, ...] = (
     RequireAuthSwitchEntityDescription(
         key="authentication",
         name="Authentication",
@@ -86,6 +109,13 @@ SENSORS: tuple[LektricoSwitchEntityDescription, ...] = (
     LockSwitchEntityDescription(
         key="locked",
         name="Lock",
+    ),
+)
+
+SWITCHES_FOR_TRI: tuple[LektricoSwitchEntityDescription, ...] = (
+    ForceSinglePhaseSwitchEntityDescription(
+        key="relay_mode",
+        name="ForceSinglePhase",
     ),
 )
 
@@ -98,13 +128,19 @@ async def async_setup_entry(
     """Set up Lektrico charger based on a config entry."""
     coordinator: LektricoDeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
+    _switches_to_be_used: tuple[LektricoSwitchEntityDescription, ...]
+    if coordinator.device_type == Device.TYPE_3P22K:
+        _switches_to_be_used = SWITCHES_FOR_ALL + SWITCHES_FOR_TRI
+    else:
+        _switches_to_be_used = SWITCHES_FOR_ALL
+
     async_add_entities(
         LektricoSwitch(
             description,
             coordinator,
             entry.data[CONF_FRIENDLY_NAME],
         )
-        for description in SENSORS
+        for description in _switches_to_be_used
     )
 
 
