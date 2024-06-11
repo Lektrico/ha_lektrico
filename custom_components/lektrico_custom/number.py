@@ -79,7 +79,7 @@ NUMBERS: tuple[LektricoNumberEntityDescription, ...] = (
     LedBrightnessNumberEntityDescription(
         key="led_max_brightness",
         name="Led brightness",
-        native_min_value=10,
+        native_min_value=0,
         native_max_value=100,
         native_step=5,
         native_unit_of_measurement=PERCENTAGE,
