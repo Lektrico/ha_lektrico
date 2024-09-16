@@ -4,7 +4,7 @@
   "config_flow": true,
   "documentation": "https://github.com/mtarjoianu/ha_lektrico",
   "issue_tracker": "https://github.com/mtarjoianu/ha_lektrico/issues",
-  "requirements": ["lektricowifi==0.0.27"],
+  "requirements": ["lektricowifi==0.0.271"],
   "dependencies": ["zeroconf"],
   "integration_type": "device",
   "codeowners": ["@mtarjoianu"],
