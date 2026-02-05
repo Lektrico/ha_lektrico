@@ -8,13 +8,23 @@ import lektricowifi
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_FRIENDLY_NAME, CONF_HOST
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+try:
+    # Home Assistant 2026.2+ (service info types moved here)
+    from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+except ImportError:  
+    try:  
+        # Re-export from the package root
+        from homeassistant.helpers.service_info import ZeroconfServiceInfo
+    except ImportError: 
+        # Older Home Assistant versions
+        from homeassistant.components.zeroconf import ZeroconfServiceInfo
 
 from .const import DOMAIN
 
