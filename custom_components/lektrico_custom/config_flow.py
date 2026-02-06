@@ -8,7 +8,7 @@ import lektricowifi
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_FRIENDLY_NAME, CONF_HOST
 from homeassistant.core import callback
